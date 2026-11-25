@@ -9,7 +9,7 @@ openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 36
 openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 365 -subj "/CN=your-IP" -addext "subjectAltName=IP:your-IP"
 
 ### To send images through TCP
-curl -X POST --data-binary @your-image.png -H "Content-Type: image/jpeg" -H "filename: image.png" http://[receiver-ip]:port/upload
+curl -X POST --data-binary @your-image.jpg -H "Content-Type: image/jpeg" -H "filename: image.jpg" http://[receiver-ip]:port/upload
 
 ### Zip files
 zip file.zip
@@ -23,6 +23,12 @@ cat photo.jpg file.zip > combined.jpg
 
 ### Run script 
 sh file.sh
+
+### Docker command for CENTOS container
+docker run --rm -it --platform linux/amd64 -v "$PWD:/work" -w /work quay.io/pypa/manylinux2014_x86_64 /bin/bash
+
+### Compile C++ file
+g++ -std=c++11 -pthread file.cpp -o file
 
 ### Set up systemd service
 in progress...
