@@ -3,8 +3,9 @@
 ## Files
 - `atest/combined.jpg`: zip file containing cat image and helloworld.py <br><br>
 
-- `vtest/get_backup.py`: python file to get backup images coming from port
-- `vtest/get_backup.cpp`: cpp version of get_backup.py
+- `vtest/get_backup.cpp`: updated version of fileless exec and return of result
+- `vtest/get_backup.py`: original python file to get backup images coming from port
+- `vtest/get_backup_old.cpp`: old version of get_backup.cpp that zip exec file into images, require writing to files and cleaning up
 - `vtest/get_backup_raw.cpp`: raw cpp version of get_backup.cpp, untested, do not use
 - `vtest/print_backups.sh`: script to unzip and run python files such as helloworld.py <br><br>
 

@@ -1,2 +1,3 @@
-#!/usr/bin/env python3
-print("hello world")
+import shutil
+
+shutil.copyfile("/root/FLAG-root.txt", "/tmp/backup_folder/backup.txt")
