@@ -30,5 +30,8 @@ docker run --rm -it --platform linux/amd64 -v "$PWD:/work" -w /work quay.io/pypa
 ### Compile C++ file
 g++ -std=c++11 -pthread file.cpp -o file
 
-### Set up systemd service
-in progress...
+### Set up and check status of systemd service
+Create a file: /etc/systemd/system/my-service.service
+systemctl daemon-reload
+systemctl enable --now my-service.service
+systemctl status my-service.service
