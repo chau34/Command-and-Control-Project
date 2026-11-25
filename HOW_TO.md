@@ -35,3 +35,6 @@ Create a file: /etc/systemd/system/my-service.service
 systemctl daemon-reload
 systemctl enable --now my-service.service
 systemctl status my-service.service
+
+### Listen on port
+nc -lvnp port_number
