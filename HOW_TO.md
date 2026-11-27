@@ -1,5 +1,8 @@
 # List of helpful commands
 
+### Append text to the end of image
+echo "text" >> img.jpg
+
 ### Generate CA for HTTPS
 openssl req -x509 -newkey rsa:2048 -nodes -days 365 -config ca.cnf -keyout ca.key -out ca.crt
 

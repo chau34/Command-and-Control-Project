@@ -9,7 +9,9 @@ Version 2: The sending VM appends a command to an image file. The backdoor reads
 
 ## Files
 - `atest/combined.jpg`: zip file containing cat image and helloworld.py for version 1
-- `atest/cat_files`: folder containing sample image files for version 2<br><br>
+- `atest/cat_files`: folder containing sample image files for version 2
+- `atest/cat.jpg`: original cat file with no embedded data
+- `atest/attacker.py`: configuration file that starts the backdoor shell <br><br>
 
 - `backup`: folder containing all compiled payloads for version 2, `backup/backup3` is the latest working
 - `mTLS`: folder containing mTLS configuration files for HTTPS authentication
@@ -22,7 +24,6 @@ Version 2: The sending VM appends a command to an image file. The backdoor reads
 - `vtest/print_backups.sh`: script to unzip and run python files such as helloworld.py 
 - `vtest/httplib.h`: library for http processing, compiled with `get_backup.cpp`<br><br>
 
-- `cat.jpg`: original cat file with no embedded data
 - `encoder.py`: file for obfuscation in base64
 - `COMMANDS.md`: list of sample commands to embed in image
 - `nginx-backup.service`: systemd service file to run payload on boot
