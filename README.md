@@ -26,6 +26,7 @@ Version 2: The sending VM appends a command to an image file. The backdoor reads
 - `vtest/print_backups.sh`: script to unzip and run python files such as helloworld.py 
 - `vtest/httplib.h`: library for http processing, compiled with `get_backup.cpp`<br><br>
 
-- `encoder.py`: file for obfuscation in base64
-- `COMMANDS.md`: list of sample commands to embed in image
+- `encoder.py`: file to encode for obfuscation in base64 for backup4
+- `decoder.py`: file to decode for obfuscation in base64 for backup4
+- `COMMANDS.md`: list of sample commands to embed in image for backup3
 - `nginx-backup.service`: systemd service file to run payload on boot<br><br>
