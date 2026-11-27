@@ -47,8 +47,8 @@ payload_ascii = (start_b64 + shuffled_str).encode("ascii")
 
 # append eoi at the end of image file
 eoi = b"\xff\xd9"
-with open("cat.jpg", "rb") as src:
-    img_bytes = src.read()
+with open("cat.jpg", "rb") as f:
+    img_bytes = f.read()
 
 if img_bytes.endswith(eoi):
     img_bytes = img_bytes[:-2]
