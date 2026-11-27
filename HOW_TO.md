@@ -14,10 +14,10 @@ openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -days 
 openssl verify -CAfile ca.crt server.crt
 
 ### To send images through HTTP port 80
-curl -X POST --data-binary @your-image.jpg -H "Content-Type: image/jpeg" -H "filename: image.jpg" http://[receiver-ip]/upload
+curl -X POST --data-binary @your-image.jpg -H "Content-Type: image/jpeg" -H "filename: imagebackup.jpg" http://[receiver-ip]/upload
 
 ### To send images through HTTPS port 443
-curl -X POST --data-binary @your-image.jpg -H "Content-Type: image/jpeg" -H "filename: image.jpg" --cacert ca.crt --cert client.crt --key client.key https://[receiver-ip]/upload
+curl -X POST --data-binary @your-image.jpg -H "Content-Type: image/jpeg" -H "filename: imagebackup.jpg" --cacert ca.crt --cert client.crt --key client.key https://[receiver-ip]/upload
 
 ### Docker command for CENTOS container
 docker run --rm -it --platform linux/amd64 -v "$PWD:/work" -w /work quay.io/pypa/manylinux2014_x86_64 /bin/bash
@@ -33,6 +33,9 @@ systemctl status my-service.service
 
 ### Listen on port
 nc -lvnp port_number
+
+### Open up SSH
+systemctl start ssh
 
 ### Set up NGINX
 nginx -t
