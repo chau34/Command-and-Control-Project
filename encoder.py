@@ -1,15 +1,14 @@
 import base64
 
-text = "START:echo 'hello w'"
-encoded_bytes = base64.b64encode(text.encode("utf-8"))
-encoded_str = encoded_bytes.decode("ascii")
+start_b64 = base64.b64encode(b"START:").decode("ascii")
+cmd = "echo 'hello world'"
+encoded_str = base64.b64encode(cmd.encode("utf-8")).decode("ascii")
 
 arr = []
 while (len(encoded_str) > 0):
     arr.append(encoded_str[:4])
     encoded_str = encoded_str[4:]
 
-# shuffle 1
 arr1 = []
 front = True
 while (arr):
@@ -20,13 +19,11 @@ while (arr):
         arr1.append(last)
     front = not front
 
-# shuffle 2
-arr2 = [None] * len(arr1)
-for i in range (len(arr1)):
-    if (i % 2 == 0 and i + 1 < len(arr1)):
-        arr2[i] = arr1[i+1]
-        arr2[i+1] = arr1[i]
+arr2 = arr1.copy()
+for i in range(len(arr1)):
+    if i % 2 == 0 and i + 1 < len(arr1):
+        arr2[i] = arr1[i + 1]
+        arr2[i + 1] = arr1[i]
 
 shuffled_str = "".join(arr2)
-
-print(shuffled_str)
+print(start_b64 + shuffled_str)

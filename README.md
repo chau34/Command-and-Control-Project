@@ -13,7 +13,7 @@ Version 2: The sending VM appends a command to an image file. The backdoor reads
 - `atest/cat.jpg`: original cat file with no embedded data
 - `atest/attacker.py`: configuration file that runs any command or creates reverse shell <br><br>
 
-- `backup`: folder containing all compiled payloads for version 2, `backup/backup3` is the latest working
+- `backup`: folder containing all compiled payloads for version 2, `backup/backup4` is the latest working
 - `mTLS`: folder containing mTLS configuration files for HTTPS authentication
 - `name`: folder containing old idea for authenticating through file names<br><br>
 
