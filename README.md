@@ -11,7 +11,7 @@ Version 2: The sending VM appends a command to an image file. The backdoor reads
 - `atest/combined.jpg`: zip file containing cat image and helloworld.py for version 1
 - `atest/cat_files`: folder containing sample image files for version 2
 - `atest/cat.jpg`: original cat file with no embedded data
-- `atest/attacker.py`: configuration file that starts the backdoor shell <br><br>
+- `atest/attacker.py`: configuration file that runs any command or creates reverse shell <br><br>
 
 - `backup`: folder containing all compiled payloads for version 2, `backup/backup3` is the latest working
 - `mTLS`: folder containing mTLS configuration files for HTTPS authentication

