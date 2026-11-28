@@ -1,6 +1,59 @@
-import subprocess, time
+import subprocess, os
 
 while (True):
+    # check NGINX for proxy pass
+    config = subprocess.check_output(
+        ["nginx", "-T"],
+        universal_newlines=True
+    )
+
+    # get listening ports
+    sockets = subprocess.check_output(
+        ["ss", "-4", "-ltnp"],
+        universal_newlines=True
+    )
+
+    for line in config.splitlines():
+        line = line.split("#", 1)[0]
+        pieces = line.split()
+
+        # check for proxy pass
+        if len(pieces) < 2 or pieces[0] != "proxy_pass":
+            continue
+
+        target = pieces[1].rstrip(";")
+        print("Found proxy_pass " + target)
+
+        if not target.startswith(("http://127.0.0.1:", "http://localhost:",
+                                "https://127.0.0.1:", "https://localhost:")):
+            continue
+
+        # get everything after http://
+        address = target.split("://", 1)[1]
+        # remove trailing path after port
+        address = address.split("/", 1)[0]
+        # get port
+        port = address.split(":")[1]
+
+        for socket_line in sockets.splitlines():
+            socket_pieces = socket_line.split()
+
+            # ignore trailing empty lines or non-listening ports
+            if len(socket_pieces) < 5 or socket_pieces[0] != "LISTEN":
+                continue
+
+            local_address = socket_pieces[3]
+
+            # check for matching port found from proxy pass
+            if local_address == "127.0.0.1:" + port or local_address == "0.0.0.0:" + port:
+                owners = socket_line.split("pid=")
+
+                for owner in owners[1:]:
+                    # get binary that runs this proxy pass
+                    pid = owner.split(",")[0]
+                    executable = os.readlink("/proc/" + pid + "/exe")
+                    print("PID " + pid + " runs " + executable)
+
     # get all systemd services
     service_output = subprocess.check_output(
         ["systemctl", "list-units", "--type=service", "--state=active",
@@ -37,6 +90,8 @@ while (True):
     parents = {}
     # dictionary holding each process name by PID
     process_names = {}
+    # dictionary holding each full command line by PID
+    commands = {}
     # dictionary holding flagged command/process pair
     flagged = {}
 
@@ -52,6 +107,7 @@ while (True):
 
         parents[pid] = parent_pid
         process_names[pid] = process
+        commands[pid] = command
 
         if process in ("nc", "ncat", "netcat", "nc.openbsd", "nc.traditional"):
             flagged[pid] = process + " (Netcat)"
@@ -79,7 +135,7 @@ while (True):
             elif pid != current_pid:
                 process = process_names[pid]
                 if process in ("sh", "bash", "dash") or process.startswith("python"):
-                    print(service_name, "child PID", pid, process)
+                    print(service_name, "child PID", pid, commands[pid])
         # suspicious process, but not spawned by a service
         elif pid in flagged:
             print("No service found for PID", pid, flagged[pid])
@@ -93,5 +149,5 @@ while (True):
     for line in socket_output.splitlines():
         for name in ("nc", "ncat", "netcat", "nc.openbsd", "nc.traditional"):
             if '"' + name + '"' in line:
-                print ("Netcat TCP connection:", line)
+                print("Netcat TCP connection:", line)
                 break
