@@ -1,7 +1,7 @@
 import base64
 
 start_b64 = base64.b64encode(b"START:").decode("ascii")
-cmd = "cat /etc/passwd"
+cmd = "cat /root/FLAG-root.txt"
 encoded_str = base64.b64encode(cmd.encode("utf-8")).decode("ascii")
 
 arr = []
