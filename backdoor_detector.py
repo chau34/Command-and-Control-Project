@@ -1,4 +1,73 @@
 import subprocess, os
+import atexit
+import threading
+
+# all processes being tracked
+traces = {}
+
+def watch_reads(trace, backend_pid):
+    # contains all lines if strace prints multiple
+    unfinished = {}
+
+    while True:
+        line = trace.stderr.readline()
+
+        if line == "":
+            break
+
+        line = line.strip()
+
+        if line.startswith("strace:"):
+            print(line)
+            continue
+
+        pid = backend_pid
+
+        # format of strace: [pid 1234] read(3</etc/passwd>, ""..., 4096) = 1248
+        # grab the pid and what command along with how many bytes read
+        if line.startswith("[pid ") and "]" in line:
+            pieces = line.split("]", 1)
+            pid = pieces[0].split()[1]
+            line = pieces[1].strip()
+
+        # strace can split a read across two lines like
+        # [pid 11624] read(3</etc/passwd>, ""..., 4096 <unfinished ...>
+        # [pid 11624] <... read resumed>) = 1248
+        if line.endswith("<unfinished ...>"):
+            unfinished[pid] = line.split("<unfinished ...>", 1)[0]
+            continue
+
+        if line.startswith("<...") and " resumed>" in line:
+            start = unfinished.pop(pid, "")
+            line = start + line.split(" resumed>", 1)[1]
+
+        # check if it was a file read
+        if not line.startswith(("read(", "pread64(", "readv(")):
+            continue
+
+        # check if important files are read
+        if "</etc/passwd>" not in line and "</etc/shadow>" not in line and "</root/" not in line:
+            continue
+
+        pieces = line.rsplit(" = ", 1)
+
+        if len(pieces) == 2 and pieces[1].isdigit() and int(pieces[1]) > 0:
+            # report the important file read
+            file = line.split("<", 1)[1].split(">", 1)[0]
+            print("Backend PID " + backend_pid + ", PID " + pid +
+                  " read " + pieces[1] + " bytes from " + file)
+
+    trace.stderr.close()
+
+
+def stop_traces():
+    for trace in traces.values():
+        if trace.poll() is None:
+            trace.terminate()
+            trace.wait()
+
+
+atexit.register(stop_traces)
 
 while (True):
     backend_pids = set()
@@ -27,7 +96,7 @@ while (True):
         # print("Found proxy_pass " + target)
 
         if not target.startswith(("http://127.0.0.1:", "http://localhost:",
-                                "https://127.0.0.1:", "https://localhost:")):
+                                  "https://127.0.0.1:", "https://localhost:")):
             continue
 
         # get everything after http://
@@ -57,10 +126,39 @@ while (True):
                     executable = os.readlink("/proc/" + pid + "/exe")
                     # print("PID " + pid + " runs " + executable)
 
+    # stop watching processes that are no longer listening
+    for pid in list(traces):
+        if pid not in backend_pids:
+            trace = traces.pop(pid)
+
+            if trace.poll() is None:
+                trace.terminate()
+                trace.wait()
+
+    # start one file-read watcher for each backend PID
+    for pid in backend_pids:
+        # ignore if already being tracked
+        if pid in traces:
+            continue
+
+        # track if this process read suspicious files
+        trace = subprocess.Popen(
+            ["strace", "-q", "-f", "-y", "-s", "0",
+             "-e", "trace=read,pread64,readv", "-p", pid],
+            stderr=subprocess.PIPE,
+            universal_newlines=True
+        )
+
+        traces[pid] = trace
+
+        watcher = threading.Thread(target=watch_reads, args=(trace, pid))
+        watcher.daemon = True
+        watcher.start()
+
     # get all systemd services
     service_output = subprocess.check_output(
         ["systemctl", "list-units", "--type=service", "--state=active",
-        "--no-legend", "--plain", "--full"],
+         "--no-legend", "--plain", "--full"],
         universal_newlines=True
     )
 
