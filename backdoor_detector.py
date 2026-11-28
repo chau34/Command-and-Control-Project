@@ -71,6 +71,7 @@ atexit.register(stop_traces)
 
 while (True):
     backend_pids = set()
+    backend_listening_ports = set()
 
     # check nginx for proxy pass
     config = subprocess.check_output(
@@ -93,7 +94,6 @@ while (True):
             continue
 
         target = pieces[1].rstrip(";")
-        # print("Found proxy_pass " + target)
 
         if not target.startswith(("http://127.0.0.1:", "http://localhost:",
                                   "https://127.0.0.1:", "https://localhost:")):
@@ -120,11 +120,9 @@ while (True):
                 owners = socket_line.split("pid=")
 
                 for owner in owners[1:]:
-                    # get binary that runs this proxy pass
                     pid = owner.split(",")[0]
                     backend_pids.add(pid)
-                    executable = os.readlink("/proc/" + pid + "/exe")
-                    # print("PID " + pid + " runs " + executable)
+                    backend_listening_ports.add(port)
 
     # stop watching processes that are no longer listening
     for pid in list(traces):
@@ -193,8 +191,6 @@ while (True):
     process_names = {}
     # dictionary holding each full command line by PID
     commands = {}
-    # dictionary holding flagged command/process pair
-    flagged = {}
 
     # find suspicious processes
     for line in process_output.splitlines():
@@ -210,13 +206,6 @@ while (True):
         process_names[pid] = process
         commands[pid] = command
 
-        if process in ("nc", "ncat", "netcat", "nc.openbsd", "nc.traditional"):
-            flagged[pid] = process + " (Netcat)"
-        elif "/root/" in command or "/root" in command.split() or "/etc/shadow" in command or "/etc/passwd" in command:
-            flagged[pid] = command + " (mentions a sensitive path)"
-
-    # print("Found", len(flagged), "Netcat or sensitive-path matches in this scan")
-
     # find which service each process belongs to
     service_pids_by_process = {}
 
@@ -228,21 +217,7 @@ while (True):
             current_pid = parents[current_pid]
 
         if current_pid in services_by_pid:
-            service_name = services_by_pid[current_pid]
             service_pids_by_process[pid] = current_pid
-
-            # process is suspicious and is spawned by a service
-            if pid in flagged:
-                print(service_name, "PID", pid, flagged[pid])
-            # process is a descendant of a service,
-            # check if it spawns any shell or run python scripts
-            elif pid != current_pid:
-                process = process_names[pid]
-                # if process in ("sh", "bash", "dash") or process.startswith("python"):
-                    # print(service_name, "child PID", pid, commands[pid])
-        # suspicious process, but not spawned by a service
-        # elif pid in flagged:
-            # print("No service found for PID", pid, flagged[pid])
 
     # find the main PID of each service that owns an NGINX backend
     backend_service_pids = set()
@@ -280,14 +255,57 @@ while (True):
             service_name = services_by_pid[service_pid]
             print("Found Base64 under " + service_name + ", PID " + pid)
 
-    # check for any outbound connections
+    # look for a shell linked to a backend service's TCP socket
     socket_output = subprocess.check_output(
         ["ss", "-ntp", "state", "established"],
         universal_newlines=True
     )
-
+    
     for line in socket_output.splitlines():
-        for name in ("nc", "ncat", "netcat", "nc.openbsd", "nc.traditional"):
-            if '"' + name + '"' in line:
-                print("Netcat TCP connection:", line)
-                break
+        pieces = line.split("users:", 1)
+
+        if len(pieces) < 2:
+            continue
+
+        addresses = pieces[0].split()
+
+        if len(addresses) < 2:
+            continue
+
+        my_address = addresses[-2]
+        remote_address = addresses[-1]
+        my_port = my_address.rsplit(":", 1)[-1]
+        remote_port = remote_address.rsplit(":", 1)[-1]
+
+        if my_port in backend_listening_ports:
+            continue
+
+        if not remote_port.isdigit() or int(remote_port) < 1024:
+            continue
+
+        owners = pieces[1].split("pid=")
+
+        for owner in owners[1:]:
+            pid = owner.split(",")[0]
+            service_pid = service_pids_by_process.get(pid)
+
+            if service_pid not in backend_service_pids:
+                continue
+
+            service_name = services_by_pid[service_pid]
+
+            for shell_pid in process_names:
+                shell_name = process_names[shell_pid]
+
+                if shell_name not in ("sh", "bash", "dash", "zsh"):
+                    continue
+
+                current_pid = shell_pid
+
+                while current_pid in parents and current_pid != pid:
+                    current_pid = parents[current_pid]
+
+                if current_pid == pid:
+                    print("Shell " + shell_name + " under " + service_name +
+                          " has a process link to TCP remote " + remote_address)
+                    break
